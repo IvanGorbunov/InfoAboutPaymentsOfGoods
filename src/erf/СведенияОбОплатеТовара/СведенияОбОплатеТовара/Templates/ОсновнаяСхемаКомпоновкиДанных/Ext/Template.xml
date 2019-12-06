@@ -190,7 +190,7 @@
 				</v8:item>
 			</title>
 			<role>
-				<dcscom:periodNumber>2</dcscom:periodNumber>
+				<dcscom:periodNumber>3</dcscom:periodNumber>
 				<dcscom:periodType>Main</dcscom:periodType>
 			</role>
 			<appearance>
@@ -226,6 +226,30 @@
 				</dcscor:item>
 			</appearance>
 		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>СрокОплаты</dataPath>
+			<field>СрокОплаты</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Срок оплаты</v8:content>
+				</v8:item>
+			</title>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>ДатаОплаты2</dataPath>
+			<field>ДатаОплаты2</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Дата оплаты2</v8:content>
+				</v8:item>
+			</title>
+			<role>
+				<dcscom:periodNumber>2</dcscom:periodNumber>
+				<dcscom:periodType>Main</dcscom:periodType>
+			</role>
+		</field>
 		<dataSource>ИсточникДанных1</dataSource>
 		<query>ВЫБРАТЬ
 	МАКСИМУМ(ХозрасчетныйОбороты.Период) КАК ДатаПокупки,
@@ -239,6 +263,25 @@
 
 СГРУППИРОВАТЬ ПО
 	ВЫРАЗИТЬ(ХозрасчетныйОбороты.Субконто2 КАК Справочник.ДоговорыКонтрагентов)
+
+ИНДЕКСИРОВАТЬ ПО
+	Субконто2
+;
+
+////////////////////////////////////////////////////////////////////////////////
+ВЫБРАТЬ
+	ДоговорыКонтрагентовДополнительныеРеквизиты.Ссылка КАК Субконто2,
+	ДоговорыКонтрагентовДополнительныеРеквизиты.Значение КАК Значение
+ПОМЕСТИТЬ ВТДополнительныеРеквизиты
+ИЗ
+	Справочник.ДоговорыКонтрагентов.ДополнительныеРеквизиты КАК ДоговорыКонтрагентовДополнительныеРеквизиты
+ГДЕ
+	ДоговорыКонтрагентовДополнительныеРеквизиты.Свойство = &amp;РеквизитСрокОплаты
+	И ДоговорыКонтрагентовДополнительныеРеквизиты.Ссылка В
+			(ВЫБРАТЬ РАЗЛИЧНЫЕ
+				ВТПокупки.Субконто2 КАК Субконто2
+			ИЗ
+				ВТПокупки КАК ВТПокупки)
 
 ИНДЕКСИРОВАТЬ ПО
 	Субконто2
@@ -268,12 +311,26 @@
 	ВТПокупки.ДатаПокупки КАК ДатаПокупки,
 	ВТПокупки.СуммаПокупки КАК СуммаПокупки,
 	ЕСТЬNULL(ВТОплаты.ДатаОплаты, "Нет оплаты") КАК ДатаОплаты,
-	ЕСТЬNULL(ВТОплаты.СуммаОплаты, 0) КАК СуммаОплаты
+	ЕСТЬNULL(ВТОплаты.СуммаОплаты, 0) КАК СуммаОплаты,
+	ЕСТЬNULL(ВТДополнительныеРеквизиты.Значение, 0) КАК СрокОплаты,
+	ВТОплаты.ДатаОплаты КАК ДатаОплаты2
 ИЗ
 	ВТПокупки КАК ВТПокупки
 		ЛЕВОЕ СОЕДИНЕНИЕ ВТОплаты КАК ВТОплаты
-		ПО ВТПокупки.Субконто2 = ВТОплаты.Субконто2</query>
+		ПО ВТПокупки.Субконто2 = ВТОплаты.Субконто2
+		ЛЕВОЕ СОЕДИНЕНИЕ ВТДополнительныеРеквизиты КАК ВТДополнительныеРеквизиты
+		ПО ВТПокупки.Субконто2 = ВТДополнительныеРеквизиты.Субконто2</query>
 	</dataSet>
+	<calculatedField>
+		<dataPath>ДниПросрочено</dataPath>
+		<expression>Экзамен.ПолучитьКоличествоДнейПросрочки(&amp;ПроизводственныйКалендарь, ДатаПокупки,ДатаОплаты2, СрокОплаты)</expression>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Дни просрочено</v8:content>
+			</v8:item>
+		</title>
+	</calculatedField>
 	<totalField>
 		<dataPath>СуммаОплаты</dataPath>
 		<expression>Сумма(СуммаОплаты)</expression>
@@ -348,6 +405,32 @@
 		<value xsi:type="dcscor:DesignTimeValue">ПланСчетов.Хозрасчетный.РасчетыСПоставщиками</value>
 		<useRestriction>true</useRestriction>
 	</parameter>
+	<parameter>
+		<name>РеквизитСрокОплаты</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Реквизит срок оплаты</v8:content>
+			</v8:item>
+		</title>
+		<value xsi:nil="true"/>
+		<useRestriction>false</useRestriction>
+		<denyIncompleteValues>true</denyIncompleteValues>
+		<use>Always</use>
+	</parameter>
+	<parameter>
+		<name>ПроизводственныйКалендарь</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Производственный календарь</v8:content>
+			</v8:item>
+		</title>
+		<value xsi:nil="true"/>
+		<useRestriction>false</useRestriction>
+		<denyIncompleteValues>true</denyIncompleteValues>
+		<use>Always</use>
+	</parameter>
 	<settingsVariant>
 		<dcsset:name>Основной</dcsset:name>
 		<dcsset:presentation xsi:type="xs:string">Основной</dcsset:presentation>
@@ -371,6 +454,9 @@
 					</dcsset:item>
 					<dcsset:placement>Vertically</dcsset:placement>
 				</dcsset:item>
+				<dcsset:item xsi:type="dcsset:SelectedItemField">
+					<dcsset:field>ДниПросрочено</dcsset:field>
+				</dcsset:item>
 				<dcsset:userSettingID>64684a16-e675-498f-9506-fc4295666817</dcsset:userSettingID>
 			</dcsset:selection>
 			<dcsset:dataParameters>
@@ -380,6 +466,16 @@
 						<v8:variant xsi:type="v8:StandardPeriodVariant">ThisYear</v8:variant>
 					</dcscor:value>
 					<dcsset:userSettingID>f5ad94c9-fe70-4c03-bf6c-a4a7f9e9728f</dcsset:userSettingID>
+				</dcscor:item>
+				<dcscor:item xsi:type="dcsset:SettingsParameterValue">
+					<dcscor:parameter>РеквизитСрокОплаты</dcscor:parameter>
+					<dcscor:value xsi:nil="true"/>
+					<dcsset:userSettingID>3e6a295c-f531-469d-a6bf-24aa7b0e863c</dcsset:userSettingID>
+				</dcscor:item>
+				<dcscor:item xsi:type="dcsset:SettingsParameterValue">
+					<dcscor:parameter>ПроизводственныйКалендарь</dcscor:parameter>
+					<dcscor:value xsi:nil="true"/>
+					<dcsset:userSettingID>561cf0ed-fb9a-41bd-ac46-8b8f0c2b5994</dcsset:userSettingID>
 				</dcscor:item>
 			</dcsset:dataParameters>
 			<dcsset:outputParameters>
