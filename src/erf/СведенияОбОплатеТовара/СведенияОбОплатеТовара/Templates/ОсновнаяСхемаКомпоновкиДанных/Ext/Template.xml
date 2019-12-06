@@ -190,7 +190,7 @@
 				</v8:item>
 			</title>
 			<role>
-				<dcscom:periodNumber>3</dcscom:periodNumber>
+				<dcscom:periodNumber>2</dcscom:periodNumber>
 				<dcscom:periodType>Main</dcscom:periodType>
 			</role>
 			<appearance>
@@ -246,9 +246,19 @@
 				</v8:item>
 			</title>
 			<role>
-				<dcscom:periodNumber>2</dcscom:periodNumber>
+				<dcscom:periodNumber>3</dcscom:periodNumber>
 				<dcscom:periodType>Main</dcscom:periodType>
 			</role>
+		</field>
+		<field xsi:type="DataSetFieldField">
+			<dataPath>КоличествоПросроченныхДней</dataPath>
+			<field>КоличествоПросроченныхДней</field>
+			<title xsi:type="v8:LocalStringType">
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Количество просроченных дней</v8:content>
+				</v8:item>
+			</title>
 		</field>
 		<dataSource>ИсточникДанных1</dataSource>
 		<query>ВЫБРАТЬ
@@ -312,14 +322,58 @@
 	ВТПокупки.СуммаПокупки КАК СуммаПокупки,
 	ЕСТЬNULL(ВТОплаты.ДатаОплаты, "Нет оплаты") КАК ДатаОплаты,
 	ЕСТЬNULL(ВТОплаты.СуммаОплаты, 0) КАК СуммаОплаты,
-	ЕСТЬNULL(ВТДополнительныеРеквизиты.Значение, 0) КАК СрокОплаты,
-	ВТОплаты.ДатаОплаты КАК ДатаОплаты2
+	ЕСТЬNULL(ВЫРАЗИТЬ(ВТДополнительныеРеквизиты.Значение КАК ЧИСЛО), 0) КАК СрокОплаты,
+	ЕСТЬNULL(ВТОплаты.ДатаОплаты, &amp;ТекДата) КАК ДатаОплаты2
+ПОМЕСТИТЬ ВТПредварительныеДанные
 ИЗ
 	ВТПокупки КАК ВТПокупки
 		ЛЕВОЕ СОЕДИНЕНИЕ ВТОплаты КАК ВТОплаты
 		ПО ВТПокупки.Субконто2 = ВТОплаты.Субконто2
 		ЛЕВОЕ СОЕДИНЕНИЕ ВТДополнительныеРеквизиты КАК ВТДополнительныеРеквизиты
-		ПО ВТПокупки.Субконто2 = ВТДополнительныеРеквизиты.Субконто2</query>
+		ПО ВТПокупки.Субконто2 = ВТДополнительныеРеквизиты.Субконто2
+;
+
+////////////////////////////////////////////////////////////////////////////////
+ВЫБРАТЬ РАЗРЕШЕННЫЕ
+	ВТПредварительныеДанные.Субконто2 КАК Субконто2,
+	КОЛИЧЕСТВО(РАЗЛИЧНЫЕ ДанныеПроизводственногоКалендаря.Дата) КАК КоличествоДней,
+	ВТПредварительныеДанные.ДатаПокупки КАК ДатаПокупки,
+	ВТПредварительныеДанные.ДатаОплаты2 КАК ДатаОплаты2
+ПОМЕСТИТЬ ВТДниПросроченнойОплаты
+ИЗ
+	ВТПредварительныеДанные КАК ВТПредварительныеДанные
+		ЛЕВОЕ СОЕДИНЕНИЕ РегистрСведений.ДанныеПроизводственногоКалендаря КАК ДанныеПроизводственногоКалендаря
+		ПО (ДанныеПроизводственногоКалендаря.Дата МЕЖДУ ВТПредварительныеДанные.ДатаПокупки И ВТПредварительныеДанные.ДатаОплаты2)
+			И (ДанныеПроизводственногоКалендаря.ПроизводственныйКалендарь = &amp;ПроизводственныйКалендарь)
+			И (ДанныеПроизводственногоКалендаря.ВидДня В (&amp;РабочиеДни))
+
+СГРУППИРОВАТЬ ПО
+	ВТПредварительныеДанные.Субконто2,
+	ВТПредварительныеДанные.ДатаПокупки,
+	ВТПредварительныеДанные.ДатаОплаты2
+
+ИНДЕКСИРОВАТЬ ПО
+	Субконто2
+;
+
+////////////////////////////////////////////////////////////////////////////////
+ВЫБРАТЬ
+	ВТПредварительныеДанные.Субконто2 КАК Субконто2,
+	ВТПредварительныеДанные.ДатаПокупки КАК ДатаПокупки,
+	ВТПредварительныеДанные.СуммаПокупки КАК СуммаПокупки,
+	ВТПредварительныеДанные.ДатаОплаты КАК ДатаОплаты,
+	ВТПредварительныеДанные.СуммаОплаты КАК СуммаОплаты,
+	ВТПредварительныеДанные.СрокОплаты КАК СрокОплаты,
+	ВТПредварительныеДанные.ДатаОплаты2 КАК ДатаОплаты2,
+	ВЫБОР
+		КОГДА ВТДниПросроченнойОплаты.КоличествоДней - ВТПредварительныеДанные.СрокОплаты &lt; 0
+			ТОГДА 0
+		ИНАЧЕ ВТДниПросроченнойОплаты.КоличествоДней - ВТПредварительныеДанные.СрокОплаты
+	КОНЕЦ КАК КоличествоПросроченныхДней
+ИЗ
+	ВТПредварительныеДанные КАК ВТПредварительныеДанные
+		ЛЕВОЕ СОЕДИНЕНИЕ ВТДниПросроченнойОплаты КАК ВТДниПросроченнойОплаты
+		ПО ВТПредварительныеДанные.Субконто2 = ВТДниПросроченнойОплаты.Субконто2</query>
 	</dataSet>
 	<calculatedField>
 		<dataPath>ДниПросрочено</dataPath>
@@ -431,6 +485,37 @@
 		<denyIncompleteValues>true</denyIncompleteValues>
 		<use>Always</use>
 	</parameter>
+	<parameter>
+		<name>ТекДата</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Тек дата</v8:content>
+			</v8:item>
+		</title>
+		<valueType>
+			<v8:Type>xs:dateTime</v8:Type>
+			<v8:DateQualifiers>
+				<v8:DateFractions>DateTime</v8:DateFractions>
+			</v8:DateQualifiers>
+		</valueType>
+		<value xsi:type="xs:dateTime">0001-01-01T00:00:00</value>
+		<useRestriction>true</useRestriction>
+		<expression>ТекущаяДата()</expression>
+	</parameter>
+	<parameter>
+		<name>РабочиеДни</name>
+		<title xsi:type="v8:LocalStringType">
+			<v8:item>
+				<v8:lang>ru</v8:lang>
+				<v8:content>Рабочие дни</v8:content>
+			</v8:item>
+		</title>
+		<value xsi:type="dcscor:DesignTimeValue">Перечисление.ВидыДнейПроизводственногоКалендаря.Рабочий</value>
+		<value xsi:type="dcscor:DesignTimeValue">Перечисление.ВидыДнейПроизводственногоКалендаря.Предпраздничный</value>
+		<useRestriction>true</useRestriction>
+		<valueListAllowed>true</valueListAllowed>
+	</parameter>
 	<settingsVariant>
 		<dcsset:name>Основной</dcsset:name>
 		<dcsset:presentation xsi:type="xs:string">Основной</dcsset:presentation>
@@ -455,7 +540,11 @@
 					<dcsset:placement>Vertically</dcsset:placement>
 				</dcsset:item>
 				<dcsset:item xsi:type="dcsset:SelectedItemField">
+					<dcsset:use>false</dcsset:use>
 					<dcsset:field>ДниПросрочено</dcsset:field>
+				</dcsset:item>
+				<dcsset:item xsi:type="dcsset:SelectedItemField">
+					<dcsset:field>КоличествоПросроченныхДней</dcsset:field>
 				</dcsset:item>
 				<dcsset:userSettingID>64684a16-e675-498f-9506-fc4295666817</dcsset:userSettingID>
 			</dcsset:selection>
@@ -476,6 +565,11 @@
 					<dcscor:parameter>ПроизводственныйКалендарь</dcscor:parameter>
 					<dcscor:value xsi:nil="true"/>
 					<dcsset:userSettingID>561cf0ed-fb9a-41bd-ac46-8b8f0c2b5994</dcsset:userSettingID>
+				</dcscor:item>
+				<dcscor:item xsi:type="dcsset:SettingsParameterValue">
+					<dcscor:use>false</dcscor:use>
+					<dcscor:parameter>РабочиеДни</dcscor:parameter>
+					<dcscor:value xsi:nil="true"/>
 				</dcscor:item>
 			</dcsset:dataParameters>
 			<dcsset:outputParameters>
